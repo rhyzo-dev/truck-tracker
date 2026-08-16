@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase, TruckVisit, TruckStatus, Plant, LogisticCompany, Truck, STATUS_LABELS, STATUS_COLORS, STATUS_ORDER } from './lib/supabase';
+import { supabase, TruckVisit, TruckStatus, Plant, LogisticCompany, Truck, STATUS_LABELS, STATUS_COLORS, STATUS_ORDER, SHIFT_OPTIONS } from './lib/supabase';
 import { LogIn, LogOut, Plus, X, Clock, Truck as TruckIcon, Filter, ChevronDown, Download, Calendar } from 'lucide-react';
 
 // ------------------ Auth ------------------
@@ -86,6 +86,9 @@ function EntryForm({
     time_in: editVisit?.time_in?.split('T')[1]?.slice(0, 5) || '',
     time_out: editVisit?.time_out?.split('T')[1]?.slice(0, 5) || '',
     issue_note: editVisit?.issue_note || '',
+    driver_name: editVisit?.driver_name || '',
+    forklift_operator_name: editVisit?.forklift_operator_name || '',
+    shift_loaded: editVisit?.shift_loaded || '',
   });
   const [saving, setSaving] = useState(false);
   const [newTruck, setNewTruck] = useState('');
@@ -112,13 +115,16 @@ function EntryForm({
       logistic_company_id: form.logistic_company_id,
       status: form.status,
       issue_note: form.status === 'issue' ? form.issue_note : null,
+      driver_name: form.driver_name,
+      forklift_operator_name: form.forklift_operator_name,
+      shift_loaded: form.shift_loaded,
     };
 
     if (form.time_in) {
-      payload.time_in = `${form.visit_date}T${form.time_in}:00+05:30`;
+      payload.time_in = `${form.visit_date}T${form.time_in}:00+03:00`;
     }
     if (form.time_out) {
-      payload.time_out = `${form.visit_date}T${form.time_out}:00+05:30`;
+      payload.time_out = `${form.visit_date}T${form.time_out}:00+03:00`;
     }
 
     const { error } = editVisit
@@ -220,6 +226,27 @@ function EntryForm({
           </div>
 
           <div className="field">
+            <label>Driver Name</label>
+            <input type="text" className="input" placeholder="Driver full name"
+              value={form.driver_name} onChange={(e) => setForm({ ...form, driver_name: e.target.value })} />
+          </div>
+
+          <div className="field">
+            <label>Forklift Operator</label>
+            <input type="text" className="input" placeholder="Forklift operator name"
+              value={form.forklift_operator_name} onChange={(e) => setForm({ ...form, forklift_operator_name: e.target.value })} />
+          </div>
+
+          <div className="field">
+            <label>Shift Loaded</label>
+            <select className="input" value={form.shift_loaded}
+              onChange={(e) => setForm({ ...form, shift_loaded: e.target.value })}>
+              <option value="">Select shift</option>
+              {SHIFT_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          <div className="field">
             <label>Status</label>
             <select className="input" value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as TruckStatus })}>
@@ -314,12 +341,15 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const handleSaved = () => { loadData(); };
 
   const exportCSV = () => {
-    const headers = ['Date', 'Plant', 'Truck No', 'Contact', 'Destination', 'Company', 'Status', 'Time In', 'Time Out'];
+    const headers = ['Date', 'Plant', 'Truck No', 'Contact', 'Driver', 'Forklift Operator', 'Shift', 'Destination', 'Company', 'Status', 'Time In', 'Time Out'];
     const rows = filteredVisits.map(v => [
       v.visit_date,
       v.plants?.name || '',
       v.trucks?.truck_no || '',
       v.contact_no,
+      v.driver_name,
+      v.forklift_operator_name,
+      v.shift_loaded,
       v.destination,
       v.logistic_companies?.name || '',
       STATUS_LABELS[v.status],
@@ -456,6 +486,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                       <td colSpan={8}>
                         <div className="expand-details">
                           <div><strong>Contact:</strong> {v.contact_no || '—'}</div>
+                          <div><strong>Driver:</strong> {v.driver_name || '—'}</div>
+                          <div><strong>Forklift Operator:</strong> {v.forklift_operator_name || '—'}</div>
+                          <div><strong>Shift:</strong> {v.shift_loaded || '—'}</div>
                           <div><strong>Registered:</strong> {new Date(v.registered_at).toLocaleString('en-IN')}</div>
                           {v.issue_note && <div className="issue-note"><strong>Issue:</strong> {v.issue_note}</div>}
                         </div>
