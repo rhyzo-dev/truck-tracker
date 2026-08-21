@@ -3,7 +3,7 @@ import { supabase, TruckVisit, TruckStatus, Plant, LogisticCompany, Truck, STATU
 import { LogIn, LogOut, Plus, X, Clock, Truck as TruckIcon, Filter, ChevronDown, Download, Calendar } from 'lucide-react';
 
 // ------------------ Auth ------------------
-function AuthPage() {
+function AuthPage({ onDemo }: { onDemo: () => void }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -53,6 +53,10 @@ function AuthPage() {
         />
         <button className="btn btn-primary" onClick={handleLogin} disabled={loading || !email}>
           {loading ? 'Sending...' : 'Send Magic Link'}
+        </button>
+        <div className="demo-divider">or</div>
+        <button className="btn btn-secondary" onClick={onDemo}>
+          Try Demo (Read-Only)
         </button>
       </div>
     </div>
@@ -297,7 +301,7 @@ function StatusBadge({ status }: { status: TruckStatus }) {
 }
 
 // ------------------ Dashboard ------------------
-function Dashboard({ onLogout }: { onLogout: () => void }) {
+function Dashboard({ onLogout, demoMode }: { onLogout: () => void; demoMode: boolean }) {
   const [visits, setVisits] = useState<TruckVisit[]>([]);
   const [plants, setPlants] = useState<Plant[]>([]);
   const [logisticCompanies, setLogisticCompanies] = useState<LogisticCompany[]>([]);
@@ -375,17 +379,27 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           <h1>Truck Tracker</h1>
         </div>
         <div className="header-right">
-          <button className="btn btn-secondary btn-sm" onClick={exportCSV} title="Download CSV">
-            <Download size={16} /> Export
-          </button>
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-            <Plus size={16} /> Add Truck
-          </button>
+          {!demoMode && (
+            <button className="btn btn-secondary btn-sm" onClick={exportCSV} title="Download CSV">
+              <Download size={16} /> Export
+            </button>
+          )}
+          {!demoMode && (
+            <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+              <Plus size={16} /> Add Truck
+            </button>
+          )}
           <button className="btn btn-ghost btn-sm" onClick={onLogout}>
-            <LogOut size={16} /> Logout
+            <LogOut size={16} /> {demoMode ? 'Exit Demo' : 'Logout'}
           </button>
         </div>
       </header>
+      {demoMode && (
+        <div className="demo-banner">
+          <span>🔒 Demo Mode — Read Only</span>
+          <span className="demo-hint">Sign in with magic link to enable editing</span>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="stats">
@@ -495,6 +509,15 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                       </td>
                     </tr>
                   )}
+                  {!demoMode && (
+                    <React.Fragment key={v.id + '-edit'}>
+                      <td colSpan={8} className="edit-row">
+                        <button className="btn btn-sm btn-ghost" onClick={(e) => { e.stopPropagation(); setEditVisit(v); setShowForm(true); }}>
+                          ✏️ Edit
+                        </button>
+                      </td>
+                    </React.Fragment>
+                  )}
                 </React.Fragment>
               ))}
             </tbody>
@@ -520,6 +543,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 // ------------------ App ------------------
 export default function App() {
   const [session, setSession] = useState<any>(null);
+  const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
@@ -529,9 +553,9 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (!session) {
-    return <AuthPage />;
+  if (!session && !demoMode) {
+    return <AuthPage onDemo={() => setDemoMode(true)} />;
   }
 
-  return <Dashboard onLogout={() => supabase.auth.signOut()} />;
+  return <Dashboard onLogout={() => { supabase.auth.signOut(); setDemoMode(false); }} demoMode={demoMode} />;
 }
